@@ -1,7 +1,7 @@
 {
   "name": "cass",
   "version": "1.0.0",
-  "main": "index.ts",
+  "main": "expo-router/entry",
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
     "@maplibre/maplibre-react-native": "^11.4.0",
@@ -40,6 +40,7 @@
     "@types/aes-js": "^3.1.4",
     "@types/geojson": "^7946.0.16",
     "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.4",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.5",
     "eslint-config-expo": "^57.0.2",
@@ -49,10 +50,23 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint",
+    "test": "jest",
+    "test:db": "bash scripts/test-db.sh",
+    "doctor": "expo-doctor",
+    "prebuild": "expo prebuild --clean",
+    "gen:types": "supabase gen types typescript --linked --schema public > src/types/database.ts"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/supabase/"
+    ]
+  }
 }
