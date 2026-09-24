@@ -42,7 +42,7 @@ export function Screen({
   return (
     <SafeAreaView style={styles.root} edges={edges}>
       <OfflineBanner />
-      <KeyboardAvoidingView style={styles.grow} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {content}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
       </KeyboardAvoidingView>
@@ -52,6 +52,8 @@ export function Screen({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
+  // Bounded to the available height so long content scrolls and the footer stays on screen.
+  fill: { flex: 1 },
   grow: { flexGrow: 1 },
   padded: { padding: space.lg, gap: space.lg },
   footer: {
