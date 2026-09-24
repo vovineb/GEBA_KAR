@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       analytics_events: {
@@ -14,21 +19,21 @@ export type Database = {
           created_at: string
           event: Database["public"]["Enums"]["analytics_event"]
           id: number
-          properties: NonNullable<Json>
+          properties: Json
           user_id: string | null
         }
         Insert: {
           created_at?: string
           event: Database["public"]["Enums"]["analytics_event"]
           id?: never
-          properties?: NonNullable<Json>
+          properties?: Json
           user_id?: string | null
         }
         Update: {
           created_at?: string
           event?: Database["public"]["Enums"]["analytics_event"]
           id?: never
-          properties?: NonNullable<Json>
+          properties?: Json
           user_id?: string | null
         }
         Relationships: [
@@ -46,19 +51,19 @@ export type Database = {
           description: string | null
           key: string
           updated_at: string
-          value: NonNullable<Json>
+          value: Json
         }
         Insert: {
           description?: string | null
           key: string
           updated_at?: string
-          value: NonNullable<Json>
+          value: Json
         }
         Update: {
           description?: string | null
           key?: string
           updated_at?: string
-          value?: NonNullable<Json>
+          value?: Json
         }
         Relationships: []
       }
@@ -237,7 +242,7 @@ export type Database = {
         Row: {
           body: string
           created_at: string
-          data: NonNullable<Json>
+          data: Json
           id: string
           read_at: string | null
           related_trip_id: string | null
@@ -249,7 +254,7 @@ export type Database = {
         Insert: {
           body: string
           created_at?: string
-          data?: NonNullable<Json>
+          data?: Json
           id?: string
           read_at?: string | null
           related_trip_id?: string | null
@@ -261,7 +266,7 @@ export type Database = {
         Update: {
           body?: string
           created_at?: string
-          data?: NonNullable<Json>
+          data?: Json
           id?: string
           read_at?: string | null
           related_trip_id?: string | null
@@ -313,7 +318,7 @@ export type Database = {
           is_active?: boolean
           lat: number
           lng: number
-          location?: never
+          location?: unknown
           name: string
           place_id?: string | null
         }
@@ -324,7 +329,7 @@ export type Database = {
           is_active?: boolean
           lat?: number
           lng?: number
-          location?: never
+          location?: unknown
           name?: string
           place_id?: string | null
         }
@@ -359,7 +364,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["place_kind"]
           lat: number
           lng: number
-          location?: never
+          location?: unknown
           name: string
           sort_order?: number
         }
@@ -371,7 +376,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["place_kind"]
           lat?: number
           lng?: number
-          location?: never
+          location?: unknown
           name?: string
           sort_order?: number
         }
@@ -953,7 +958,7 @@ export type Database = {
           vehicle_id: string
         }
         Insert: {
-          available_seats?: never
+          available_seats?: number | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           completed_at?: string | null
@@ -964,7 +969,7 @@ export type Database = {
           destination_lat: number
           destination_lng: number
           destination_name: string
-          destination_point?: never
+          destination_point?: unknown
           distance_m?: number | null
           dropoff_point_id?: string | null
           duration_s?: number | null
@@ -976,7 +981,7 @@ export type Database = {
           origin_lat: number
           origin_lng: number
           origin_name: string
-          origin_point?: never
+          origin_point?: unknown
           pickup_point_id?: string | null
           recurring_trip_id?: string | null
           reminder_sent_at?: string | null
@@ -991,7 +996,7 @@ export type Database = {
           vehicle_id: string
         }
         Update: {
-          available_seats?: never
+          available_seats?: number | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           completed_at?: string | null
@@ -1002,7 +1007,7 @@ export type Database = {
           destination_lat?: number
           destination_lng?: number
           destination_name?: string
-          destination_point?: never
+          destination_point?: unknown
           distance_m?: number | null
           dropoff_point_id?: string | null
           duration_s?: number | null
@@ -1014,7 +1019,7 @@ export type Database = {
           origin_lat?: number
           origin_lng?: number
           origin_name?: string
-          origin_point?: never
+          origin_point?: unknown
           pickup_point_id?: string | null
           recurring_trip_id?: string | null
           reminder_sent_at?: string | null
@@ -1176,7 +1181,7 @@ export type Database = {
         Returns: undefined
       }
       cfg: { Args: { p_key: string }; Returns: Json }
-      cfg_timezone: { Args: Record<PropertyKey, never>; Returns: string }
+      cfg_timezone: { Args: never; Returns: string }
       complete_trip: { Args: { p_trip_id: string }; Returns: undefined }
       create_recurring_trip: { Args: { p: Json }; Returns: string }
       create_trip: { Args: { p: Json }; Returns: string }
@@ -1196,7 +1201,7 @@ export type Database = {
         Returns: number
       }
       get_my_profile: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avatar_path: string | null
           bio: string | null
@@ -1239,7 +1244,7 @@ export type Database = {
         Returns: boolean
       }
       list_blocked_users: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avatar_path: string
           blocked_at: string
@@ -1294,7 +1299,7 @@ export type Database = {
         }[]
       }
       my_vehicles: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           colour: string
           created_at: string
@@ -1328,10 +1333,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      prepare_account_deletion: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      prepare_account_deletion: { Args: never; Returns: undefined }
       register_push_token: {
         Args: { p_platform: string; p_token: string }
         Returns: undefined
@@ -1350,12 +1352,12 @@ export type Database = {
         }
         Returns: string
       }
-      require_user: { Args: Record<PropertyKey, never>; Returns: string }
+      require_user: { Args: never; Returns: string }
       respond_to_request: {
         Args: { p_accept: boolean; p_request_id: string }
         Returns: Database["public"]["Enums"]["request_status"]
       }
-      run_trip_maintenance: { Args: Record<PropertyKey, never>; Returns: Json }
+      run_trip_maintenance: { Args: never; Returns: Json }
       search_trips: {
         Args: {
           p_date?: string
@@ -1406,7 +1408,7 @@ export type Database = {
         Returns: boolean
       }
       unread_counts: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           messages: number
           notifications: number
@@ -1718,4 +1720,3 @@ export const Constants = {
     },
   },
 } as const
-

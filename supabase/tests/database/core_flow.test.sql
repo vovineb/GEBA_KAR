@@ -1,7 +1,7 @@
 -- End-to-end database test of the core CASS loop plus the security rules
 -- that protect it. Runs with `npx supabase test db` or scripts/test-db.sh.
 begin;
-select plan(81);
+select plan(83);
 
 -- Fixtures ------------------------------------------------------------------
 create temp table ctx (k text primary key, v text);
@@ -215,6 +215,13 @@ select throws_ok(format($$ insert into public.ratings (trip_id, rater_id, ratee_
   'P0001', 'not_a_participant', 'non-participant cannot rate');
 select lives_ok($$ insert into public.reports (reporter_id, reported_user_id, reason, details)
   values (auth.uid(), '11111111-1111-4111-8111-111111111111', 'other', 'test report') $$, 'C can report a user');
+
+-- Helper functions never reveal facts about other users -------------------------
+set local request.jwt.claims to '{"sub":"33333333-3333-4333-8333-333333333333"}';
+select is(public.is_trip_participant((select v::uuid from ctx where k = 'trip'), '22222222-2222-4222-8222-222222222222'), false,
+  'cannot probe whether someone else is on a trip');
+select is(public.has_trip_request((select v::uuid from ctx where k = 'trip'), '22222222-2222-4222-8222-222222222222'), false,
+  'cannot probe someone else''s seat requests');
 
 -- Blocking -----------------------------------------------------------------------
 set local request.jwt.claims to '{"sub":"11111111-1111-4111-8111-111111111111"}';

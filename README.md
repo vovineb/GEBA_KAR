@@ -392,6 +392,7 @@ on launch and caches it for slow networks):
 | Symptom | Fix |
 | --- | --- |
 | “App not configured” screen | `.env` values missing/invalid. For EAS builds, set them in the Expo dashboard and rebuild. |
+| Changed `.env` but the app still uses old values | `EXPO_PUBLIC_*` values are compiled into the JS bundle and Metro caches it: restart with `npx expo start --dev-client --clear`. |
 | Map shows “Map not configured” / “could not load” | Set `EXPO_PUBLIC_MAP_STYLE_URL`; check the key and its restrictions; check network. |
 | “Location search is not set up yet” | `ORS_API_KEY` secret missing on Supabase, or the `geo` function not deployed. |
 | `Invariant Violation: … MLRN…` / native module not found | You are in Expo Go. Install the development build. |
