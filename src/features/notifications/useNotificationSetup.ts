@@ -21,7 +21,7 @@ Notifications.setNotificationHandler({
  * the Settings screen asks explicitly), routes notification taps, and keeps
  * unread badges fresh through one realtime subscription.
  */
-export function useNotificationSetup(userId: string) {
+export function useNotificationSetup(userId: string, ready: boolean) {
   const refreshBadges = useBadgeStore((s) => s.refresh);
 
   useEffect(() => {
@@ -30,10 +30,11 @@ export function useNotificationSetup(userId: string) {
 
   const lastResponse = Notifications.useLastNotificationResponse();
   useEffect(() => {
-    if (!lastResponse || lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
+    // Wait until screens can render (config loaded) so a cold-start tap is not lost.
+    if (!ready || !lastResponse || lastResponse.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
     const data = lastResponse.notification.request.content.data as Record<string, unknown>;
     router.push(notificationRoute(data));
-  }, [lastResponse]);
+  }, [lastResponse, ready]);
 
   useEffect(() => {
     void refreshBadges();

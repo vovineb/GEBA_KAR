@@ -18,18 +18,22 @@ export default function AppLayout() {
   useEffect(() => {
     void load();
   }, [load]);
-  useNotificationSetup(userId);
+  useNotificationSetup(userId, !!config);
 
-  if (!config) {
-    return (
-      <Screen scroll={false}>
-        {error ? <ErrorState message={error.message} onRetry={load} /> : <LoadingState label="Getting ready…" />}
-      </Screen>
-    );
-  }
-
+  // The navigator is always mounted so deep links and notification taps that
+  // arrive during start-up keep their target; each screen's content waits for
+  // the remote configuration instead.
   return (
     <Stack
+      screenLayout={({ children }) =>
+        config ? (
+          children
+        ) : (
+          <Screen scroll={false}>
+            {error ? <ErrorState message={error.message} onRetry={load} /> : <LoadingState label="Getting ready…" />}
+          </Screen>
+        )
+      }
       screenOptions={{
         headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '700' },

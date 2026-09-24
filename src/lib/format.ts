@@ -13,6 +13,7 @@ export function formatDay(iso: string, timeZone: string, now = new Date()): stri
   const day = todayIn(timeZone, new Date(iso));
   if (day === todayIn(timeZone, now)) return 'Today';
   if (day === todayIn(timeZone, new Date(now.getTime() + 86_400_000))) return 'Tomorrow';
+  if (day === todayIn(timeZone, new Date(now.getTime() - 86_400_000))) return 'Yesterday';
   return new Intl.DateTimeFormat(LOCALE, { timeZone, weekday: 'short', day: 'numeric', month: 'short' }).format(
     new Date(iso),
   );
@@ -47,6 +48,21 @@ export function formatRelative(iso: string, now = new Date()): string {
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86_400) return `${Math.floor(diff / 3600)}h`;
   return `${Math.floor(diff / 86_400)}d`;
+}
+
+/** Human "time ago": "just now", "5 min ago", "3 h ago", "2 d ago". */
+export function formatAgo(iso: string, now = new Date()): string {
+  const s = Math.max(0, (now.getTime() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86_400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86_400)} d ago`;
+}
+
+/** Chat/inbox timestamp: time for today, otherwise day + time. */
+export function formatMessageTime(iso: string, timeZone: string, now = new Date()): string {
+  const day = formatDay(iso, timeZone, now);
+  return day === 'Today' ? formatTime(iso, timeZone) : `${day} ${formatTime(iso, timeZone)}`;
 }
 
 export const WEEKDAYS = [

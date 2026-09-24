@@ -30,7 +30,12 @@ export function DateTimeField({
   const [open, setOpen] = useState(false);
   const text = value
     ? mode === 'date'
-      ? value.toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+      ? value.toLocaleDateString('en-KE', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          ...(value.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+        })
       : `${pad(value.getHours())}:${pad(value.getMinutes())}`
     : (placeholder ?? (mode === 'date' ? 'Choose date' : 'Choose time'));
 

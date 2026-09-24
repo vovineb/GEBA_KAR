@@ -424,3 +424,13 @@ verify_jwt = false
 
 [functions.delete-account]
 verify_jwt = false
+
+# CASS email templates (local stack). For the hosted project, paste the same
+# HTML into Authentication -> Emails -> Templates (see README).
+[auth.email.template.confirmation]
+subject = "Your CASS verification code"
+content_path = "./supabase/templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Your CASS password reset code"
+content_path = "./supabase/templates/recovery.html"

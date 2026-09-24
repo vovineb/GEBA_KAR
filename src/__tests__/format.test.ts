@@ -1,4 +1,13 @@
-import { formatDay, formatDistance, formatDuration, formatMoney, formatTime, formatWeekdays } from '@/lib/format';
+import {
+  formatAgo,
+  formatDay,
+  formatDistance,
+  formatDuration,
+  formatMessageTime,
+  formatMoney,
+  formatTime,
+  formatWeekdays,
+} from '@/lib/format';
 import { haversineMeters, nearest } from '@/lib/geo';
 import { toDateString, todayIn, toTimeString, zonedTimestamp } from '@/lib/time';
 
@@ -25,6 +34,17 @@ describe('formatting', () => {
     const now = new Date('2026-10-01T05:00:00Z');
     expect(formatDay('2026-10-01T15:00:00Z', TZ, now)).toBe('Today');
     expect(formatDay('2026-10-02T04:00:00Z', TZ, now)).toBe('Tomorrow');
+  });
+  it('describes elapsed time in plain words', () => {
+    const now = new Date('2026-10-01T05:00:00Z');
+    expect(formatAgo('2026-10-01T04:59:50Z', now)).toBe('just now');
+    expect(formatAgo('2026-10-01T04:55:00Z', now)).toBe('5 min ago');
+    expect(formatAgo('2026-10-01T02:00:00Z', now)).toBe('3 h ago');
+  });
+  it('dates chat messages that are not from today', () => {
+    const now = new Date('2026-10-01T05:00:00Z');
+    expect(formatMessageTime('2026-10-01T04:00:00Z', TZ, now)).toBe('07:00');
+    expect(formatMessageTime('2026-09-30T12:09:00Z', TZ, now)).toBe('Yesterday 15:09');
   });
   it('formats money, distance and duration', () => {
     expect(formatMoney(120, 'KES')).toBe('KES 120');

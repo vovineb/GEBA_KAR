@@ -180,9 +180,9 @@ service-role-only database functions (`get_server_secret`, `verify_push_webhook_
 4. **Auth settings** (*Authentication*):
    - *Sign In / Providers → Email*: enable Email, keep **Confirm email** on, set minimum password length to 8.
    - *Emails → Templates*: CASS uses 6-digit **codes** (they work even if the email is opened on another device).
-     Add the code to two templates:
-     - **Confirm signup**: `<p>Your CASS verification code is <strong>{{ .Token }}</strong></p>`
-     - **Reset Password**: `<p>Your CASS password reset code is <strong>{{ .Token }}</strong></p>`
+     Paste the ready-made templates (also used by the local stack via `config.toml`):
+     - **Confirm signup** — subject `Your CASS verification code`, body `supabase/templates/confirmation.html`
+     - **Reset Password** — subject `Your CASS password reset code`, body `supabase/templates/recovery.html`
    - *Emails → SMTP*: configure your own SMTP before the pilot. Supabase’s built-in sender is heavily rate-limited
      and meant for testing only.
 5. **Deploy the Edge Functions and set their secrets**:

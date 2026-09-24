@@ -12,7 +12,7 @@ import { shareTrip } from '@/features/trips/shareTrip';
 import { TripMap } from '@/features/trips/TripMap';
 import { useTripDetail } from '@/features/trips/useTripDetail';
 import { useAction } from '@/hooks/useAction';
-import { formatRelative, formatTime } from '@/lib/format';
+import { formatAgo, formatTime } from '@/lib/format';
 import { listLiveLocations, subscribeToLiveLocations } from '@/services/liveLocationService';
 import { supabase } from '@/lib/supabase';
 import { useUserId } from '@/store/authStore';
@@ -136,7 +136,7 @@ function ActiveTrip({ trip, reload }: { trip: TripDetail; reload: () => Promise<
           <View style={styles.status}>
             {trip.is_creator ? null : creatorLoc ? (
               <Text variant="caption">
-                {names[trip.creator.id]}’s location updated {formatRelative(creatorLoc.updated_at)} ago
+                {names[trip.creator.id]}’s location updated {formatAgo(creatorLoc.updated_at)}
               </Text>
             ) : (
               <Text variant="caption" tone="warning">
@@ -156,18 +156,16 @@ function ActiveTrip({ trip, reload }: { trip: TripDetail; reload: () => Promise<
           <Text tone="muted">This trip is no longer in progress. Location sharing has stopped.</Text>
         )}
 
+        {live ? (
+          <Button
+            title={sharing ? 'Stop sharing my location' : 'Share my location'}
+            variant="secondary"
+            loading={toggleSharing.busy}
+            onPress={toggleSharing.run}
+            icon={sharing ? <LocateOff size={18} color={colors.text} /> : <LocateFixed size={18} color={colors.text} />}
+          />
+        ) : null}
         <View style={styles.row}>
-          {live ? (
-            <Button
-              title={sharing ? 'Stop sharing' : 'Share my location'}
-              variant="secondary"
-              compact
-              loading={toggleSharing.busy}
-              onPress={toggleSharing.run}
-              icon={sharing ? <LocateOff size={16} color={colors.text} /> : <LocateFixed size={16} color={colors.text} />}
-              style={styles.flex}
-            />
-          ) : null}
           <Button title="Share trip" variant="secondary" compact onPress={() => void shareTrip(trip, tz)} icon={<Share2 size={16} color={colors.text} />} style={styles.flex} />
           <Button
             title="Report"
@@ -175,6 +173,7 @@ function ActiveTrip({ trip, reload }: { trip: TripDetail; reload: () => Promise<
             compact
             onPress={() => router.push({ pathname: '/report', params: { tripId: trip.id, userId: trip.is_creator ? '' : trip.creator.id } })}
             icon={<ShieldAlert size={16} color={colors.danger} />}
+            style={styles.flex}
           />
         </View>
         {trip.is_creator && live ? <Button title="End trip" loading={end.busy} onPress={confirmEnd} /> : null}

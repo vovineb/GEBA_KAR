@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { toAppError } from '@/lib/errors';
-import { formatTime } from '@/lib/format';
+import { formatMessageTime } from '@/lib/format';
 import {
   getConversationHeader,
   listMessages,
@@ -125,7 +125,7 @@ export default function ChatScreen() {
           title: conv?.title ?? 'Chat',
           headerRight: conv?.trip_id
             ? () => (
-                <Pressable onPress={() => router.push(`/trip/${conv.trip_id}`)} hitSlop={8} accessibilityRole="button">
+                <Pressable onPress={() => router.push(`/trip/${conv.trip_id}`)} hitSlop={8} accessibilityRole="button" style={styles.headerAction}>
                   <Text variant="caption" tone="brand">
                     View trip
                   </Text>
@@ -170,7 +170,7 @@ export default function ChatScreen() {
                 <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
                   <Text tone={mine ? 'inverse' : 'default'}>{item.body}</Text>
                   <Text variant="small" tone={mine ? 'inverse' : 'subtle'} style={styles.meta}>
-                    {item.pending ? 'Sending…' : formatTime(item.created_at, timezone)}
+                    {item.pending ? 'Sending…' : formatMessageTime(item.created_at, timezone)}
                   </Text>
                 </View>
               );
@@ -257,4 +257,5 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.4 },
   errorLine: { paddingHorizontal: space.lg, paddingBottom: space.sm },
+  headerAction: { paddingHorizontal: space.sm },
 });

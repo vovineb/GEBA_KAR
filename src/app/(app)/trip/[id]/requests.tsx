@@ -7,7 +7,7 @@ import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, RatingSumm
 import { requestStatusBadge } from '@/features/trips/labels';
 import { useAction } from '@/hooks/useAction';
 import { useAsync } from '@/hooks/useAsync';
-import { formatRelative } from '@/lib/format';
+import { formatAgo } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { findDirectConversation } from '@/services/chatService';
 import { listTripRequests, respondToRequest, type TripRequestRow } from '@/services/tripService';
@@ -76,7 +76,7 @@ function RequestRow({ tripId, request, onChanged }: { tripId: string; request: T
           </Text>
           <RatingSummary average={r?.rating_average} count={r?.rating_count} />
           <Text variant="small" tone="subtle">
-            {r?.completed_trips_count ?? 0} shared trips · requested {formatRelative(request.created_at)} ago
+            {r?.completed_trips_count ?? 0} shared trips · requested {formatAgo(request.created_at)}
           </Text>
         </View>
         <Badge label={badge.label} tone={badge.tone} />
