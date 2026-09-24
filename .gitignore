@@ -47,3 +47,4 @@ yarn-error.*
 supabase/functions/deno.lock
 google-services.json
 GoogleService-Info.plist
+*.keystore

@@ -37,7 +37,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Needed for Android push (FCM). Optional until push is configured.
     ...(existsSync(GOOGLE_SERVICES_FILE) ? { googleServicesFile: GOOGLE_SERVICES_FILE } : {}),
     permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION'],
-    blockedPermissions: ['android.permission.ACCESS_BACKGROUND_LOCATION'],
+    blockedPermissions: ['android.permission.ACCESS_BACKGROUND_LOCATION', 'android.permission.RECORD_AUDIO'],
   },
   plugins: [
     'expo-router',
@@ -70,6 +70,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission: `${APP_NAME} lets you choose a profile or vehicle photo.`,
         cameraPermission: `${APP_NAME} lets you take a profile or vehicle photo.`,
+        microphonePermission: false,
       },
     ],
     '@maplibre/maplibre-react-native',
