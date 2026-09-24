@@ -5,6 +5,7 @@ import { existsSync } from 'fs';
 // nothing environment-specific is hardcoded here.
 const APP_NAME = process.env.APP_NAME || 'CASS';
 const APP_ID = process.env.APP_ID || 'app.cass.mobile';
+const APP_SLUG = process.env.APP_SLUG || 'gebacass';
 const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID || undefined;
 const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_FILE || './google-services.json';
 
@@ -15,7 +16,7 @@ const LOCATION_WHEN_IN_USE =
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: APP_NAME,
-  slug: 'cass',
+  slug: APP_SLUG,
   scheme: 'cass',
   version: '1.0.0',
   orientation: 'portrait',

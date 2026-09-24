@@ -145,15 +145,16 @@ There is one environment file: **`.env`** (git-ignored). `.env.example` document
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | yes | yes | Supabase publishable (or legacy anon) key |
 | `EXPO_PUBLIC_MAP_STYLE_URL` | for maps | yes | MapLibre style JSON URL incl. the provider’s public key |
 | `EAS_PROJECT_ID` | for push | build-time only | Expo project ID used for push tokens |
+| `APP_SLUG` | for EAS | build-time only | Must equal the expo.dev project slug |
 | `APP_NAME`, `APP_ID`, `GOOGLE_SERVICES_FILE` | no | build-time only | Branding / Android package / path to `google-services.json` |
 
 Only `EXPO_PUBLIC_*` values end up inside the app, so they must never contain secrets. If the Supabase values are
 missing, the app shows a “not configured” screen listing what is missing instead of crashing. If the map style is
 missing, maps show “Map not configured” — they are never faked.
 
-For **EAS cloud builds**, `.env` is not uploaded. Add the same variables in the Expo dashboard (*Project → Environment
-variables*, environments `development` / `preview` / `production`, visibility “Plain text” is fine for these public
-values). `eas.json` maps each build profile to the environment of the same name.
+For **EAS cloud builds**, `.easignore` uploads `.env` and `google-services.json` with the project (both are
+git-ignored but contain only public client values), so no extra dashboard setup is needed. `APP_SLUG` must match the
+project slug on expo.dev (`gebacass` for the pilot project).
 
 Server-side secrets (never in `.env`) live in **Supabase Vault** and are read by the Edge Functions through
 service-role-only database functions (`get_server_secret`, `verify_push_webhook_secret`):
@@ -241,7 +242,9 @@ still work in-app (inbox + badges) but no push is sent.
 1. In the project folder: `npx eas-cli init` → copy the project ID into `.env` as `EAS_PROJECT_ID`.
 2. Firebase: add an Android app with package `app.cass.mobile` (or your `APP_ID`), download
    `google-services.json` into the project root.
-3. Upload the FCM V1 service-account key: `npx eas-cli credentials` → Android → *Google Service Account* → *FCM V1*.
+3. Upload the FCM V1 service-account key (a private key — never commit it, paste it anywhere or put it in `.env`):
+   expo.dev → your project → *Credentials* → Android → `app.cass.mobile` → *FCM V1 service account key* → *Upload*
+   (or `npx eas-cli credentials` → Android → *Google Service Account* → *Push Notifications (FCM V1)*).
 4. Make sure the two Vault secrets from [Supabase setup](#supabase-setup) step 5 exist.
 5. Rebuild the development build (push config is native). In the app: *Profile → Settings → Push notifications*.
 
