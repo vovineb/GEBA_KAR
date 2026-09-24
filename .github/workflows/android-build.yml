@@ -1,0 +1,88 @@
+# Builds the CASS Android app on Expo's servers (EAS Build) and posts the
+# install link (with QR code) in the run summary.
+#
+# Repository secrets required (Settings -> Secrets and variables -> Actions):
+#   EXPO_TOKEN            expo.dev -> Account settings -> Access tokens
+#   APP_ENV_FILE          the full contents of your .env file
+#   GOOGLE_SERVICES_JSON  the full contents of google-services.json
+name: Android build
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile'
+        type: choice
+        options: [preview, production, development]
+        default: preview
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'supabase/**', 'scripts/**']
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check secrets
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          missing=0
+          for s in EXPO_TOKEN APP_ENV_FILE GOOGLE_SERVICES_JSON; do
+            if [ -z "${!s}" ]; then echo "::error::Repository secret $s is not set"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Write .env and google-services.json
+        env:
+          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s\n' "$APP_ENV_FILE" > .env
+          printf '%s\n' "$GOOGLE_SERVICES_JSON" > google-services.json
+          grep -E '^[A-Z_][A-Z0-9_]*=' .env >> "$GITHUB_ENV"
+          node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))" \
+            || (echo "::error::GOOGLE_SERVICES_JSON is not valid JSON" && exit 1)
+
+      - run: npm ci
+
+      - name: Type check and unit tests
+        run: |
+          npx tsc --noEmit
+          npx jest --ci
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Start EAS build
+        run: |
+          PROFILE="${{ inputs.profile || 'preview' }}"
+          eas build --platform android --profile "$PROFILE" --non-interactive --no-wait | tee build.log
+          URL=$(grep -oE 'https://expo\.dev/accounts/[^ ]+/builds/[a-z0-9-]+' build.log | head -1)
+          {
+            echo "## CASS Android build ($PROFILE)"
+            echo
+            if [ -n "$URL" ]; then
+              echo "Build page (open on your phone, or scan the QR code there when the build finishes, ~10-20 min):"
+              echo
+              echo "$URL"
+            else
+              echo "Build started. See expo.dev -> your project -> Builds."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
