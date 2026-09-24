@@ -338,6 +338,16 @@ npx eas-cli build --profile production --platform android   # AAB for Google Pla
 Local alternative: `npx expo prebuild --platform android --clean && cd android && ./gradlew assembleRelease`
 (configure your own signing key first; never commit keystores — `*.jks`/`*.keystore` are git-ignored).
 
+**GitHub Actions (no Expo account needed).** `.github/workflows/android-apk.yml` runs on every push to
+`main` (and on demand from the Actions tab). It typechecks, tests, builds a release APK on GitHub's runner and
+publishes it as the `cass-latest` release, so testers always install from the same link:
+`https://github.com/<owner>/<repo>/releases/download/cass-latest/cass.apk`. The workflow carries the
+client-side config (publishable key, map style URL, Firebase Android config); set repository secrets
+`APP_ENV_FILE` / `GOOGLE_SERVICES_JSON` to override them. That APK is signed with the Expo template's debug
+key — fine for testers, but use EAS (or your own keystore) for Google Play.
+`.github/workflows/android-build.yml` is the EAS alternative (needs secrets `EXPO_TOKEN`, `APP_ENV_FILE`,
+`GOOGLE_SERVICES_JSON`).
+
 ---
 
 ## Production and deployment
