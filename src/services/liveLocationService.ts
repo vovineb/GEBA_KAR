@@ -36,19 +36,17 @@ export async function listLiveLocations(tripId: string): Promise<LiveLocation[]>
   return unwrap(await supabase.from('live_locations').select('*').eq('trip_id', tripId));
 }
 
-export function subscribeToLiveLocations(
-  tripId: string,
-  onChange: (loc: LiveLocation, event: 'INSERT' | 'UPDATE' | 'DELETE') => void,
-): RealtimeChannel {
+/**
+ * Live position updates for one trip. Only INSERT/UPDATE are subscribed:
+ * those are RLS-checked per subscriber (DELETE events are not), and the end
+ * of sharing is signalled by the trip status instead.
+ */
+export function subscribeToLiveLocations(tripId: string, onChange: (loc: LiveLocation) => void): RealtimeChannel {
+  const filter = `trip_id=eq.${tripId}`;
+  const handler = (payload: { new: unknown }) => onChange(payload.new as LiveLocation);
   return supabase
     .channel(`live:${tripId}`)
-    .on(
-      'postgres_changes',
-      { event: '*', schema: 'public', table: 'live_locations', filter: `trip_id=eq.${tripId}` },
-      (payload) => {
-        const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as LiveLocation;
-        onChange(row, payload.eventType);
-      },
-    )
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_locations', filter }, handler)
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'live_locations', filter }, handler)
     .subscribe();
 }

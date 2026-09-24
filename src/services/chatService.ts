@@ -56,3 +56,17 @@ export function subscribeToMessages(conversationId: string, onMessage: (m: Messa
 export function unsubscribe(channel: RealtimeChannel) {
   void supabase.removeChannel(channel);
 }
+
+/** The creator <-> passenger conversation for a trip, if it exists. */
+export async function findDirectConversation(tripId: string, passengerId: string): Promise<string | null> {
+  const rows = unwrap(
+    await supabase
+      .from('conversations')
+      .select('id')
+      .eq('kind', 'direct')
+      .eq('trip_id', tripId)
+      .eq('passenger_id', passengerId)
+      .limit(1),
+  );
+  return rows[0]?.id ?? null;
+}
