@@ -4,15 +4,21 @@
 //   reverse { lat, lng }                     -> { result: Place | null }
 //   route   { points: [{lat,lng}...], avoid_tollways?: boolean }
 //           -> { geometry: GeoJSON LineString, distance_m, duration_s, uses_tollways }
-import { handle, HttpError, json, requireUser } from '../_shared/supabase.ts';
+import { adminClient, handle, HttpError, json, requireUser } from '../_shared/supabase.ts';
 
 const ORS = 'https://api.openrouteservice.org';
 const COUNTRY = Deno.env.get('GEO_COUNTRY_CODE') ?? 'KE';
 
-function orsKey(): string {
-  const key = Deno.env.get('ORS_API_KEY');
-  if (!key) throw new HttpError(503, 'geo_not_configured');
-  return key;
+// The key comes from the ORS_API_KEY function secret if set, otherwise from
+// Supabase Vault (secret `cass_ors_api_key`). Cached per function instance.
+let cachedKey: string | null = null;
+async function orsKey(): Promise<string> {
+  if (cachedKey) return cachedKey;
+  const fromEnv = Deno.env.get('ORS_API_KEY');
+  if (fromEnv) return (cachedKey = fromEnv);
+  const { data } = await adminClient().rpc('get_server_secret', { p_name: 'cass_ors_api_key' });
+  if (typeof data !== 'string' || !data) throw new HttpError(503, 'geo_not_configured');
+  return (cachedKey = data);
 }
 
 type LatLng = { lat: number; lng: number };
@@ -53,7 +59,12 @@ Deno.serve(handle(async (req) => {
     case 'search': {
       const text = String(body.text ?? '').trim().slice(0, 100);
       if (text.length < 2) return json({ results: [] });
-      const q = new URLSearchParams({ api_key: orsKey(), text, 'boundary.country': COUNTRY, size: '8' });
+      const q = new URLSearchParams({
+        api_key: await orsKey(),
+        text,
+        'boundary.country': COUNTRY,
+        size: '8',
+      });
       if (isLatLng(body.focus)) {
         q.set('focus.point.lat', String(body.focus.lat));
         q.set('focus.point.lon', String(body.focus.lng));
@@ -64,7 +75,7 @@ Deno.serve(handle(async (req) => {
     case 'reverse': {
       if (!isLatLng(body)) throw new HttpError(400, 'invalid_input');
       const q = new URLSearchParams({
-        api_key: orsKey(),
+        api_key: await orsKey(),
         'point.lat': String(body.lat),
         'point.lon': String(body.lng),
         size: '1',
@@ -81,7 +92,7 @@ Deno.serve(handle(async (req) => {
       }
       const data = await orsFetch(`${ORS}/v2/directions/driving-car/geojson`, {
         method: 'POST',
-        headers: { Authorization: orsKey(), 'Content-Type': 'application/json' },
+        headers: { Authorization: await orsKey(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
           coordinates: (points as LatLng[]).map((p) => [p.lng, p.lat]),
           instructions: false,

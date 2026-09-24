@@ -109,11 +109,11 @@ The Supabase CLI and EAS CLI run through `npx`; no global install is needed.
 | --- | --- | --- | --- | --- | --- |
 | 1 | [Supabase](https://supabase.com/dashboard) | A project | Project URL, **Publishable key** (`sb_publishable_…`, or legacy `anon` key) | `.env` | Yes (RLS protects data) |
 | 2 | Supabase | (same project) | **Secret key** / `service_role` key, database password | **Nowhere in the app.** Only the Supabase dashboard/CLI. Edge Functions receive it automatically. | **Never** |
-| 3 | [OpenRouteService](https://openrouteservice.org/dev/#/signup) | Free account → *Dashboard* → create a token (Standard plan) | API key | Supabase **Edge Function secret** `ORS_API_KEY` | No — server only |
+| 3 | [OpenRouteService](https://openrouteservice.org/dev/#/signup) | Free account → *Dashboard* → create a token (Standard plan) | API key | Supabase **Vault** secret `cass_ors_api_key` (SQL below) | No — server only |
 | 4 | [MapTiler](https://cloud.maptiler.com/account/keys/) (or another MapLibre-compatible tile provider) | Account → API key; pick a map (e.g. *Streets v2*) | Style URL `https://api.maptiler.com/maps/streets-v2/style.json?key=…` | `.env` `EXPO_PUBLIC_MAP_STYLE_URL` | Yes (tile keys are public by design; restrict it in the MapTiler dashboard) |
 | 5 | [Expo](https://expo.dev/signup) | Account, then `npx eas-cli init` in this folder | EAS project ID (UUID) | `.env` `EAS_PROJECT_ID` | Yes |
 | 6 | [Firebase](https://console.firebase.google.com/) (for Android push) | Project → add Android app with package `app.cass.mobile` → download `google-services.json`; *Project settings → Service accounts → Generate new private key* | `google-services.json` (project root) and a service-account JSON | `google-services.json` in the project root (git-ignored). Service-account JSON: upload with `npx eas-cli credentials` → Android → *Google Service Account Key for FCM V1*. **Do not** commit it or put it in `.env`. | `google-services.json`: yes. Service account: **never** |
-| 7 | You | A random secret: `openssl rand -hex 32` | Push webhook secret | Supabase Edge Function secret `PUSH_WEBHOOK_SECRET` **and** Vault secret `cass_push_webhook_secret` | No — server only |
+| 7 | Generated inside the database (SQL below) | — | Push webhook secret | Supabase **Vault** secret `cass_push_webhook_secret` — never leaves the database | No — server only |
 | 8 | An SMTP provider (recommended before inviting pilot users) | e.g. Resend, Brevo, Mailgun | SMTP host/user/password | Supabase *Authentication → Emails → SMTP settings* | No — server only |
 
 Billing notes: all of the above have free tiers suitable for a pilot. Check each provider’s current free-tier limits
@@ -155,8 +155,10 @@ For **EAS cloud builds**, `.env` is not uploaded. Add the same variables in the 
 variables*, environments `development` / `preview` / `production`, visibility “Plain text” is fine for these public
 values). `eas.json` maps each build profile to the environment of the same name.
 
-Server-side secrets (never in `.env`): `ORS_API_KEY`, `PUSH_WEBHOOK_SECRET`, optional `EXPO_ACCESS_TOKEN`
-(only if you enable “enhanced push security” in Expo) — set with `npx supabase secrets set …` (below).
+Server-side secrets (never in `.env`) live in **Supabase Vault** and are read by the Edge Functions through
+service-role-only database functions (`get_server_secret`, `verify_push_webhook_secret`):
+`cass_ors_api_key`, `cass_project_url`, `cass_push_webhook_secret`. Optional `EXPO_ACCESS_TOKEN` (only if you enable
+“enhanced push security” in Expo) is an Edge Function secret (`npx supabase secrets set EXPO_ACCESS_TOKEN=…`).
 
 ---
 
@@ -185,11 +187,16 @@ Server-side secrets (never in `.env`): `ORS_API_KEY`, `PUSH_WEBHOOK_SECRET`, opt
 5. **Deploy the Edge Functions and set their secrets**:
    ```bash
    npx supabase functions deploy geo send-push delete-account
-   npx supabase secrets set ORS_API_KEY=<openrouteservice key> PUSH_WEBHOOK_SECRET=<random hex from step 7 above>
+   ```
+   Then store the server secrets in Vault (*SQL Editor*):
+   ```sql
+   select vault.create_secret('<OpenRouteService key>', 'cass_ors_api_key');
+   select vault.create_secret('https://<project-ref>.supabase.co', 'cass_project_url');
+   select vault.create_secret(encode(extensions.gen_random_bytes(32), 'hex'), 'cass_push_webhook_secret');
    ```
    (`supabase/config.toml` sets `verify_jwt = false` for these three; each function verifies the caller itself —
    signed-in user for `geo`/`delete-account`, the webhook secret for `send-push`.)
-6. **Enable push dispatch** (see [Push notifications](#push-notifications)) by adding two Vault secrets.
+6. Push dispatch is enabled as soon as `cass_project_url` and `cass_push_webhook_secret` exist (step 5).
 7. **Regenerate types after any schema change**: `npm run gen:types` (uses the linked project).
 
 What the migrations set up for you:
@@ -235,11 +242,7 @@ still work in-app (inbox + badges) but no push is sent.
 2. Firebase: add an Android app with package `app.cass.mobile` (or your `APP_ID`), download
    `google-services.json` into the project root.
 3. Upload the FCM V1 service-account key: `npx eas-cli credentials` → Android → *Google Service Account* → *FCM V1*.
-4. In Supabase *SQL Editor* run (use your real values):
-   ```sql
-   select vault.create_secret('https://<project-ref>.supabase.co', 'cass_project_url');
-   select vault.create_secret('<same value as PUSH_WEBHOOK_SECRET>', 'cass_push_webhook_secret');
-   ```
+4. Make sure the two Vault secrets from [Supabase setup](#supabase-setup) step 5 exist.
 5. Rebuild the development build (push config is native). In the app: *Profile → Settings → Push notifications*.
 
 ---
@@ -394,11 +397,11 @@ on launch and caches it for slow networks):
 | “App not configured” screen | `.env` values missing/invalid. For EAS builds, set them in the Expo dashboard and rebuild. |
 | Changed `.env` but the app still uses old values | `EXPO_PUBLIC_*` values are compiled into the JS bundle and Metro caches it: restart with `npx expo start --dev-client --clear`. |
 | Map shows “Map not configured” / “could not load” | Set `EXPO_PUBLIC_MAP_STYLE_URL`; check the key and its restrictions; check network. |
-| “Location search is not set up yet” | `ORS_API_KEY` secret missing on Supabase, or the `geo` function not deployed. |
+| “Location search is not set up yet” | Vault secret `cass_ors_api_key` missing, or the `geo` function not deployed. |
 | `Invariant Violation: … MLRN…` / native module not found | You are in Expo Go. Install the development build. |
 | Sign-up email has a link but no code | Add `{{ .Token }}` to the *Confirm signup* / *Reset Password* templates. |
 | Emails stop arriving | Built-in Supabase email is rate-limited; configure custom SMTP. |
-| No push notifications | Physical device? Permission granted in Settings? `EAS_PROJECT_ID` set and app rebuilt? FCM V1 key uploaded? Both Vault secrets present and `PUSH_WEBHOOK_SECRET` matches? Check *Edge Functions → send-push → Logs*. |
+| No push notifications | Physical device? Permission granted in Settings? `EAS_PROJECT_ID` set and app rebuilt? FCM V1 key uploaded? Vault secrets `cass_project_url` and `cass_push_webhook_secret` present? Check *Edge Functions → send-push → Logs*. |
 | `permission denied for function …` | A new RPC was added without `grant execute … to authenticated`. |
 | Trips never expire / recurring trips not generated | Check *Database → Cron jobs* for `cass-trip-maintenance` and its run history. |
 | Location sharing stops when the screen is off (some Android brands) | Disable battery optimisation for CASS (*Settings → Apps → CASS → Battery → Unrestricted*). |

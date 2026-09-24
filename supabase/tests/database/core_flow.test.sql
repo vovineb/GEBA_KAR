@@ -1,7 +1,7 @@
 -- End-to-end database test of the core CASS loop plus the security rules
 -- that protect it. Runs with `npx supabase test db` or scripts/test-db.sh.
 begin;
-select plan(83);
+select plan(87);
 
 -- Fixtures ------------------------------------------------------------------
 create temp table ctx (k text primary key, v text);
@@ -279,6 +279,12 @@ insert into vault.secrets values ('cass_project_url', 'https://example.supabase.
 select public.notify('22222222-2222-4222-8222-222222222222', 'safety_alert', 'Test', 'Push dispatch test');
 select is((select url from net.calls order by id desc limit 1), 'https://example.supabase.co/functions/v1/send-push',
   'notification dispatched to send-push edge function');
+select ok(public.verify_push_webhook_secret('test-secret'), 'push webhook secret verified against Vault');
+select ok(not public.verify_push_webhook_secret('wrong-secret'), 'wrong push webhook secret rejected');
+set local role authenticated;
+select throws_ok($$ select public.get_server_secret('cass_ors_api_key') $$, '42501', null, 'app users cannot read server secrets');
+select throws_ok($$ select public.verify_push_webhook_secret('x') $$, '42501', null, 'app users cannot probe the push secret');
+reset role;
 select lives_ok($$ select public.run_trip_maintenance() $$, 'scheduled maintenance runs');
 
 select * from finish();

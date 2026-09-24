@@ -1,17 +1,18 @@
 // Delivers one stored notification to the recipient's devices through the
 // Expo Push Service. Invoked by the notifications_dispatch_push database
-// trigger (pg_net) with a shared secret; not callable by app users.
+// trigger (pg_net) with a shared secret that lives only in Supabase Vault;
+// not callable by app users.
 import { adminClient, handle, HttpError, json } from '../_shared/supabase.ts';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
 Deno.serve(handle(async (req) => {
-  const secret = Deno.env.get('PUSH_WEBHOOK_SECRET');
-  if (!secret || req.headers.get('x-cass-webhook-secret') !== secret) {
-    throw new HttpError(401, 'unauthorized');
-  }
-  const { notification_id } = await req.json();
   const db = adminClient();
+  const { data: authorized } = await db.rpc('verify_push_webhook_secret', {
+    p_secret: req.headers.get('x-cass-webhook-secret') ?? '',
+  });
+  if (authorized !== true) throw new HttpError(401, 'unauthorized');
+  const { notification_id } = await req.json();
 
   const { data: n, error } = await db
     .from('notifications')
