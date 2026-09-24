@@ -1,12 +1,13 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SearchX } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
 
 import { Button, EmptyState, ErrorState, LoadingState, Text } from '@/components/ui';
 import { decodeQuery } from '@/features/search/searchQuery';
 import { TripCard } from '@/features/trips/TripCard';
-import { toAppError, type AppError } from '@/lib/errors';
+import { useAsync } from '@/hooks/useAsync';
+import type { AppError } from '@/lib/errors';
 import { logSearch, searchTrips } from '@/services/tripService';
 import { useAppConfig } from '@/store/configStore';
 import type { TripSearchResult } from '@/types/domain';
@@ -18,11 +19,9 @@ export default function SearchResultsScreen() {
   const { q } = useLocalSearchParams<{ q: string }>();
   const query = decodeQuery(q);
   const config = useAppConfig();
-  const [items, setItems] = useState<TripSearchResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [extra, setExtra] = useState<TripSearchResult[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState<AppError | null>(null);
+  const [moreDone, setMoreDone] = useState(false);
 
   const fetchPage = useCallback(
     async (offset: number) => {
@@ -44,43 +43,36 @@ export default function SearchResultsScreen() {
     [q],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const page = await fetchPage(0);
-      setItems(page);
-      setDone(page.length < PAGE);
-      if (query) {
-        void logSearch({
-          trip_type: query.tripType,
-          seats: query.seats,
-          has_time: !!query.time,
-          recurring_only: query.recurringOnly,
-          results: page.length,
-        }).catch(() => undefined);
-      }
-    } catch (e) {
-      setError(toAppError(e));
-    } finally {
-      setLoading(false);
+  const first = useAsync(async () => {
+    const page = await fetchPage(0);
+    if (query) {
+      void logSearch({
+        trip_type: query.tripType,
+        seats: query.seats,
+        has_time: !!query.time,
+        recurring_only: query.recurringOnly,
+        results: page.length,
+      }).catch(() => undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchPage]);
+    return page;
+  }, [q]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const firstPage = first.data ?? [];
+  const items = [...firstPage, ...extra.filter((p) => !firstPage.some((x) => x.id === p.id))];
+  const done = firstPage.length < PAGE || moreDone;
+  const loading = first.loading;
+  const error: AppError | null = first.error;
+  const load = first.reload;
 
   const loadMore = async () => {
     if (done || loadingMore || loading) return;
     setLoadingMore(true);
     try {
       const page = await fetchPage(items.length);
-      setItems((prev) => [...prev, ...page.filter((p) => !prev.some((x) => x.id === p.id))]);
-      setDone(page.length < PAGE);
+      setExtra((prev) => [...prev, ...page]);
+      if (page.length < PAGE) setMoreDone(true);
     } catch {
-      setDone(true);
+      setMoreDone(true);
     } finally {
       setLoadingMore(false);
     }

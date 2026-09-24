@@ -74,7 +74,7 @@ export function toAppError(e: unknown, fallback = 'Something went wrong. Please 
   if (e instanceof AppError) return e;
   const err = (e ?? {}) as Errorish;
   const message = err.message ?? '';
-  if (__DEV__) console.warn('[CASS error]', e);
+  if (__DEV__ && process.env.NODE_ENV !== 'test') console.warn('[CASS error]', e);
 
   const rpcMessage = message ? RPC_MESSAGES[message] : undefined;
   if (rpcMessage) return new AppError(rpcMessage, message, e);

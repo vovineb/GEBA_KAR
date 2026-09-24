@@ -21,14 +21,10 @@ export function useRoutePreview(points: (LatLng | null)[], expressway: Expresswa
   const complete = valid.length === points.length && valid.length >= 2;
 
   useEffect(() => {
-    if (!complete) {
-      setRoute(null);
-      setSuggestion(null);
-      setError(null);
-      return;
-    }
+    if (!complete) return;
     let alive = true;
     const t = setTimeout(async () => {
+      if (!alive) return;
       setLoading(true);
       setError(null);
       try {
@@ -55,5 +51,7 @@ export function useRoutePreview(points: (LatLng | null)[], expressway: Expresswa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, complete]);
 
+  // Nothing to show until both ends (and all stops) are chosen.
+  if (!complete) return { route: null, suggestion: null, loading: false, error: null };
   return { route, suggestion, loading, error };
 }

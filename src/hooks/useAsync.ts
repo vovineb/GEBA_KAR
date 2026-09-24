@@ -2,60 +2,76 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { toAppError, type AppError } from '@/lib/errors';
 
+type Result<T> = { deps: readonly unknown[]; data: T | undefined; error: AppError | null };
+
+const sameDeps = (a: readonly unknown[] | null, b: readonly unknown[]) =>
+  !!a && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
+
 /**
- * Minimal data-loading hook: loading / data / error / refresh.
+ * Minimal data-loading hook: loading / data / error / refresh / reload.
  * The database stays the source of truth; this is only a view cache.
+ * `loading` is derived: true until a result exists for the current deps.
  */
-export function useAsync<T>(fn: () => Promise<T>, deps: unknown[], opts: { enabled?: boolean } = {}) {
+export function useAsync<T>(fn: () => Promise<T>, deps: readonly unknown[], opts: { enabled?: boolean } = {}) {
   const enabled = opts.enabled ?? true;
-  const [data, setData] = useState<T | undefined>(undefined);
-  const [error, setError] = useState<AppError | null>(null);
-  const [loading, setLoading] = useState(enabled);
+  const [result, setResult] = useState<Result<T> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const mounted = useRef(true);
+  const fnRef = useRef(fn);
+  const depsRef = useRef(deps);
   const run = useRef(0);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const load = useCallback(fn, deps);
+  useEffect(() => {
+    fnRef.current = fn;
+    depsRef.current = deps;
+  });
 
-  const execute = useCallback(
-    async (mode: 'initial' | 'refresh' | 'silent') => {
-      const id = ++run.current;
-      if (mode === 'initial') setLoading(true);
-      if (mode === 'refresh') setRefreshing(true);
-      try {
-        const result = await load();
-        if (mounted.current && id === run.current) {
-          setData(result);
-          setError(null);
-        }
-      } catch (e) {
-        if (mounted.current && id === run.current) setError(toAppError(e));
-      } finally {
-        if (mounted.current && id === run.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
-    },
-    [load],
-  );
+  const execute = useCallback(async () => {
+    const id = ++run.current;
+    const forDeps = depsRef.current;
+    try {
+      const data = await fnRef.current();
+      if (id === run.current) setResult({ deps: forDeps, data, error: null });
+    } catch (e) {
+      if (id === run.current) setResult((prev) => ({ deps: forDeps, data: prev?.data, error: toAppError(e) }));
+    }
+  }, []);
 
   useEffect(() => {
-    mounted.current = true;
-    if (enabled) void execute('initial');
+    if (!enabled) return;
+    depsRef.current = deps;
+    fnRef.current = fn;
+    void execute();
     return () => {
-      mounted.current = false;
+      // Invalidate the in-flight load so a stale result is never applied.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      run.current++;
     };
-  }, [execute, enabled]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, execute, ...deps]);
+
+  const current = result && sameDeps(result.deps, deps) ? result : null;
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await execute();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [execute]);
+
+  const setData = useCallback(
+    (data: T) => setResult({ deps: depsRef.current, data, error: null }),
+    [],
+  );
 
   return {
-    data,
-    error,
-    loading,
+    data: current?.data ?? (result?.data as T | undefined),
+    error: current?.error ?? null,
+    loading: enabled && !current,
     refreshing,
     setData,
-    refresh: useCallback(() => execute('refresh'), [execute]),
-    reload: useCallback(() => execute('silent'), [execute]),
+    refresh,
+    reload: execute,
   };
 }

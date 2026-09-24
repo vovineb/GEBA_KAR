@@ -31,10 +31,7 @@ export default function ActiveTripScreen() {
 function useLiveLocations(tripId: string, active: boolean) {
   const [locations, setLocations] = useState<Record<string, LiveLocation>>({});
   useEffect(() => {
-    if (!active) {
-      setLocations({});
-      return;
-    }
+    if (!active) return;
     let cancelled = false;
     listLiveLocations(tripId)
       .then((rows) => !cancelled && setLocations(Object.fromEntries(rows.map((r) => [r.user_id, r]))))
@@ -45,7 +42,7 @@ function useLiveLocations(tripId: string, active: boolean) {
       void supabase.removeChannel(channel);
     };
   }, [tripId, active]);
-  return locations;
+  return active ? locations : {};
 }
 
 function ActiveTrip({ trip, reload }: { trip: TripDetail; reload: () => Promise<void> }) {
@@ -57,10 +54,17 @@ function ActiveTrip({ trip, reload }: { trip: TripDetail; reload: () => Promise<
   const [sharing, setSharing] = useState(false);
   const [, tick] = useState(0);
 
-  const refreshSharing = useCallback(async () => setSharing((await trackingTripId()) === trip.id), [trip.id]);
+  const refreshSharing = useCallback(async () => {
+    const tracked = await trackingTripId();
+    setSharing(tracked === trip.id);
+  }, [trip.id]);
   useEffect(() => {
-    void refreshSharing();
-  }, [refreshSharing]);
+    let alive = true;
+    trackingTripId().then((tracked) => alive && setSharing(tracked === trip.id));
+    return () => {
+      alive = false;
+    };
+  }, [trip.id]);
 
   // Tracking must never outlive the trip on this device.
   useEffect(() => {
