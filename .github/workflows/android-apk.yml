@@ -1,0 +1,114 @@
+# Builds an installable CASS APK directly on GitHub's runner (no Expo account
+# needed) and publishes it as the "cass-latest" GitHub Release, so the stable
+# download link is:
+#   https://github.com/<owner>/<repo>/releases/download/cass-latest/cass.apk
+#
+# The values below are CLIENT-side configuration that is bundled into the app
+# anyway (Supabase publishable key, MapTiler key, Firebase Android config).
+# Setting the repository secrets APP_ENV_FILE / GOOGLE_SERVICES_JSON overrides
+# them. Never put service-role keys or other server secrets here.
+name: Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, claude/cass-karpull-production-ql6zmj]
+    paths-ignore: ['**.md', 'supabase/**', 'scripts/**']
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  DEFAULT_ENV_FILE: |
+    EXPO_PUBLIC_SUPABASE_URL=https://evembomltykmogdymrsz.supabase.co
+    EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_DmVs86Pho23QyJB8GQWv_w_ZyHTNsqL
+    EXPO_PUBLIC_MAP_STYLE_URL=https://api.maptiler.com/maps/streets-v2/style.json?key=QHO8wxBUUKXptnANbzNw
+    EAS_PROJECT_ID=8c4e2c1c-525b-4cff-bcd1-d034cdf29602
+    APP_SLUG=gebacass
+  DEFAULT_GOOGLE_SERVICES_JSON: |
+    {
+      "project_info": {
+        "project_number": "335191700418",
+        "project_id": "geba-cass",
+        "storage_bucket": "geba-cass.firebasestorage.app"
+      },
+      "client": [
+        {
+          "client_info": {
+            "mobilesdk_app_id": "1:335191700418:android:d1aef96d82c5bf4de41c5b",
+            "android_client_info": { "package_name": "app.cass.mobile" }
+          },
+          "oauth_client": [],
+          "api_key": [{ "current_key": "AIzaSyC3OKe_e0XRx7MYL6kNcyizUbefWEDn7cI" }],
+          "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+        }
+      ],
+      "configuration_version": "1"
+    }
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Write .env and google-services.json
+        env:
+          APP_ENV_FILE: ${{ secrets.APP_ENV_FILE }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s\n' "${APP_ENV_FILE:-$DEFAULT_ENV_FILE}" > .env
+          printf '%s\n' "${GOOGLE_SERVICES_JSON:-$DEFAULT_GOOGLE_SERVICES_JSON}" > google-services.json
+          node -e "JSON.parse(require('fs').readFileSync('google-services.json','utf8'))"
+          grep -v '^\s*#' .env | grep '=' >> "$GITHUB_ENV"
+
+      - run: npm ci
+
+      - name: Typecheck and unit tests
+        run: |
+          npx tsc --noEmit
+          npx jest --ci
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install --clean
+
+      - name: Build release APK
+        working-directory: android
+        run: |
+          sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          ./gradlew assembleRelease --no-daemon \
+            -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+          cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/cass.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cass-apk
+          path: cass.apk
+
+      - name: Publish to the cass-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="CASS Android build from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7} ($(date -u +'%Y-%m-%d %H:%M UTC')). Install cass.apk on an Android phone (allow installing from this source when asked)."
+          gh release delete cass-latest --cleanup-tag --yes >/dev/null 2>&1 || true
+          gh release create cass-latest cass.apk --target "$GITHUB_SHA" \
+            --title "CASS (latest Android build)" --notes "$notes" --prerelease
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/cass-latest/cass.apk"
+          echo "### Download: $url" >> "$GITHUB_STEP_SUMMARY"

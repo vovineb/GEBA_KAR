@@ -37,6 +37,12 @@ const RPC_MESSAGES: Record<string, string> = {
   not_conversation_member: 'You are no longer part of this conversation.',
   trip_not_completed: 'You can rate after the trip is completed.',
   rating_window_closed: 'The rating period for this trip has ended.',
+  account_required: 'Create an account or sign in to do that.',
+  women_only_trip: 'This trip is for women only.',
+  women_only_requires_female: 'Only women can offer women-only trips.',
+  gender_locked: 'Your gender is already set. Contact support to change it.',
+  invalid_photo: 'One of the photos could not be saved. Try again.',
+  guest_mode_disabled: 'Browsing without an account is not available right now. Please sign in or create an account.',
   active_trip_in_progress: 'Finish or end your active trip before deleting your account.',
   // Edge functions
   geo_not_configured: 'Location search is not set up yet (routing API key missing on the server).',

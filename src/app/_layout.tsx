@@ -36,6 +36,7 @@ export default function RootLayout() {
         <Stack.Protected guard={signedIn && !recovering}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
+        <Stack.Screen name="terms" />
       </Stack>
     </SafeAreaProvider>
   );

@@ -185,6 +185,10 @@ service-role-only database functions (`get_server_secret`, `verify_push_webhook_
      - **Reset Password** — subject `Your CASS password reset code`, body `supabase/templates/recovery.html`
    - *Emails → SMTP*: configure your own SMTP before the pilot. Supabase’s built-in sender is heavily rate-limited
      and meant for testing only.
+   - *Sign In / Providers → Allow anonymous sign-ins*: **on**. This powers “Browse trips without an account”: guests
+     can search and open trips, and are asked to create an account before creating, requesting, messaging,
+     reporting or uploading (enforced in the database: `require_user()` refuses anonymous sessions, guests get no
+     profile row, and storage writes are blocked). Consider enabling CAPTCHA (*Attack Protection*) against abuse.
 5. **Deploy the Edge Functions and set their secrets**:
    ```bash
    npx supabase functions deploy geo send-push delete-account
@@ -208,6 +212,11 @@ What the migrations set up for you:
 - **Realtime**: `messages`, `trip_requests`, `trips`, `live_locations`, `notifications` are published; Postgres
   Changes respect RLS for each subscriber.
 - **Cron**: `cass-trip-maintenance` every 5 minutes.
+- **Accounts**: sign-up stores gender and the accepted Terms version (`src/features/legal/terms.ts`, bump
+  `TERMS_VERSION` when the text changes). Gender can be set once (support corrects it with the service role).
+  New members see the welcome guide once (`profiles.onboarded_at`).
+- **Women-only trips**: only women can post them, and only women can request seats on them (database triggers).
+- **Vehicle photos**: up to 8 per vehicle (`vehicles.photo_paths`); the first is the cover (`photo_path`).
 
 **Migrations workflow.** Every schema change is a new file: `npx supabase migration new <name>`, write SQL, test
 locally (`npm run test:db`), then `npx supabase db push`. Never edit the production schema by hand. New functions are
@@ -337,6 +346,16 @@ npx eas-cli build --profile production --platform android   # AAB for Google Pla
 
 Local alternative: `npx expo prebuild --platform android --clean && cd android && ./gradlew assembleRelease`
 (configure your own signing key first; never commit keystores — `*.jks`/`*.keystore` are git-ignored).
+
+**GitHub Actions (no Expo account needed).** `.github/workflows/android-apk.yml` runs on every push to
+`main` (and on demand from the Actions tab). It typechecks, tests, builds a release APK on GitHub's runner and
+publishes it as the `cass-latest` release, so testers always install from the same link:
+`https://github.com/<owner>/<repo>/releases/download/cass-latest/cass.apk`. The workflow carries the
+client-side config (publishable key, map style URL, Firebase Android config); set repository secrets
+`APP_ENV_FILE` / `GOOGLE_SERVICES_JSON` to override them. That APK is signed with the Expo template's debug
+key — fine for testers, but use EAS (or your own keystore) for Google Play.
+`.github/workflows/android-build.yml` is the EAS alternative (needs secrets `EXPO_TOKEN`, `APP_ENV_FILE`,
+`GOOGLE_SERVICES_JSON`).
 
 ---
 

@@ -3,18 +3,22 @@ import { Car, ShieldAlert, UserX } from 'lucide-react-native';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Avatar, Button, Divider, ErrorState, ListRow, LoadingState, RatingSummary, Screen, Section, Text } from '@/components/ui';
+import { promptAccount } from '@/features/auth/guest';
+import { formatGender } from '@/features/profile/gender';
+import { VehiclePhotos } from '@/features/vehicles/VehiclePhotos';
 import { useAction } from '@/hooks/useAction';
 import { useAsync } from '@/hooks/useAsync';
 import { formatRelative } from '@/lib/format';
 import { getPublicProfile } from '@/services/profileService';
 import { blockUser, isBlocked, unblockUser } from '@/services/safetyService';
-import { useUserId } from '@/store/authStore';
+import { useIsGuest, useUserId } from '@/store/authStore';
 import { colors, space } from '@/theme';
 
 export default function PublicProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const me = useUserId()!;
-  const data = useAsync(() => Promise.all([getPublicProfile(id), isBlocked(me, id)]), [id, me]);
+  const isGuest = useIsGuest();
+  const data = useAsync(() => Promise.all([getPublicProfile(id), isGuest ? false : isBlocked(me, id)]), [id, me, isGuest]);
 
   const toggleBlock = useAction(async () => {
     const blocked = data.data?.[1];
@@ -36,6 +40,7 @@ export default function PublicProfileScreen() {
           <Text variant="heading">{profile.full_name || 'CASS member'}</Text>
           <RatingSummary average={profile.rating_average} count={profile.rating_count} />
           <Text variant="caption" tone="muted">
+            {formatGender(profile.gender) ? `${formatGender(profile.gender)} · ` : ''}
             {profile.completed_trips_count} shared trips · member since {new Date(profile.created_at).getFullYear()}
           </Text>
         </View>
@@ -45,7 +50,10 @@ export default function PublicProfileScreen() {
       {vehicles.length ? (
         <Section title="Vehicles">
           {vehicles.map((v) => (
-            <ListRow key={v.id} title={`${v.colour} ${v.make} ${v.model}`} left={<Car size={20} color={colors.textMuted} />} />
+            <View key={v.id} style={styles.vehicle}>
+              <ListRow title={`${v.colour} ${v.make} ${v.model}`} left={<Car size={20} color={colors.textMuted} />} />
+              <VehiclePhotos paths={v.photo_paths} height={96} />
+            </View>
           ))}
         </Section>
       ) : null}
@@ -76,7 +84,7 @@ export default function PublicProfileScreen() {
           <ListRow
             title="Report this person"
             left={<ShieldAlert size={20} color={colors.danger} />}
-            onPress={() => router.push({ pathname: '/report', params: { userId: id } })}
+            onPress={() => (isGuest ? promptAccount('report someone') : router.push({ pathname: '/report', params: { userId: id } }))}
           />
           <Button
             title={blocked ? 'Unblock' : 'Block'}
@@ -84,7 +92,9 @@ export default function PublicProfileScreen() {
             icon={<UserX size={18} color={colors.danger} />}
             loading={toggleBlock.busy}
             onPress={() =>
-              blocked
+              isGuest
+                ? promptAccount('block someone')
+                : blocked
                 ? void toggleBlock.run()
                 : Alert.alert(
                     `Block ${profile.full_name || 'this person'}?`,
@@ -106,4 +116,5 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: space.lg },
   flex: { flex: 1, gap: 4 },
   rating: { gap: space.xs, paddingVertical: space.xs },
+  vehicle: { gap: space.sm },
 });

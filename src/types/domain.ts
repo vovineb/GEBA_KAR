@@ -16,12 +16,12 @@ export type NotificationType = Enums<'notification_type'>;
 export type Profile = Tables<'profiles'>;
 export type PublicProfile = Pick<
   Profile,
-  'id' | 'full_name' | 'avatar_path' | 'bio' | 'rating_average' | 'rating_count' | 'completed_trips_count' | 'created_at'
+  'id' | 'full_name' | 'avatar_path' | 'bio' | 'gender' | 'rating_average' | 'rating_count' | 'completed_trips_count' | 'created_at'
 >;
 export type Vehicle = Tables<'vehicles'>;
 export type Place = Pick<Tables<'places'>, 'id' | 'name' | 'kind' | 'lat' | 'lng'>;
 export type PickupPoint = Pick<Tables<'pickup_points'>, 'id' | 'name' | 'description' | 'lat' | 'lng' | 'place_id'>;
-export type TripSearchResult = PublicSchema['CompositeTypes']['trip_search_result'];
+export type TripSearchResult = PublicSchema['CompositeTypes']['trip_search_result'] & { women_only?: boolean };
 export type MyTrip = PublicSchema['Functions']['my_trips']['Returns'][number];
 export type ConversationSummary = PublicSchema['Functions']['list_conversations']['Returns'][number];
 export type Message = Tables<'messages'>;
@@ -65,6 +65,7 @@ export type TripDetail = {
   expressway_option: ExpresswayOption;
   luggage_policy: LuggagePolicy;
   notes: string | null;
+  women_only: boolean;
   cancellation_reason: string | null;
   recurring_trip_id: string | null;
   started_at: string | null;
@@ -81,6 +82,7 @@ export type TripDetail = {
     colour: string;
     seat_capacity: number;
     photo_path: string | null;
+    photo_paths: string[];
     registration_number: string | null;
   };
   pickup_point: (LatLng & { id: string; name: string; description: string | null }) | null;
@@ -95,6 +97,7 @@ export type TripDetail = {
     seat_count: number;
     full_name: string;
     avatar_path: string | null;
+    gender: Enums<'gender'> | null;
     rating_average: number;
     rating_count: number;
     pickup_point_id: string | null;

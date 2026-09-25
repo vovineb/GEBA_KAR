@@ -23,6 +23,9 @@ import { addDays, toDateString, toTimeString, zonedTimestamp } from '@/lib/time'
 import { getRoute, listPickupPoints } from '@/services/geoService';
 import { createRecurringTrip, createTrip, type TripPayload } from '@/services/tripService';
 import { listMyVehicles } from '@/services/vehicleService';
+import { GuestGate } from '@/features/auth/guest';
+import { useIsGuest } from '@/store/authStore';
+import { useMyGender } from '@/store/profileStore';
 import { useAppConfig } from '@/store/configStore';
 import { useLocationPickerStore } from '@/store/locationPickerStore';
 import type { ChosenLocation, PickupPoint } from '@/types/domain';
@@ -49,9 +52,18 @@ const defaults: CreateTripForm = {
   contribution: '',
   notes: '',
   stops: [],
+  womenOnly: false,
 };
 
-export default function CreateTripScreen() {
+export default function CreateTripScreenGate() {
+  const isGuest = useIsGuest();
+  if (isGuest) {
+    return <GuestGate title="Create a trip" body="Sign up to offer the empty seats on journeys you are already making. Browsing trips stays free without an account." />;
+  }
+  return <CreateTripScreen />;
+}
+
+function CreateTripScreen() {
   const vehicles = useAsync(listMyVehicles, []);
   const points = useAsync(listPickupPoints, []);
   const { reload } = vehicles;
@@ -87,6 +99,7 @@ function CreateTripFormView({
   pickupPoints: PickupPoint[];
 }) {
   const config = useAppConfig();
+  const canOfferWomenOnly = useMyGender() === 'female';
   const take = useLocationPickerStore((s) => s.take);
   const form = useForm<CreateTripForm>({
     resolver: zodResolver(createTripSchema),
@@ -146,6 +159,7 @@ function CreateTripFormView({
       expressway_option: values.expressway,
       luggage_policy: values.luggage,
       notes: values.notes.trim() || null,
+      women_only: canOfferWomenOnly && values.womenOnly,
     };
 
     if (recurring) {
@@ -331,6 +345,23 @@ function CreateTripFormView({
           <ChipSelect label="Vehicle" options={vehicles.map((x) => ({ value: x.id, label: `${x.colour} ${x.make} ${x.model}` }))} value={field.value} onChange={(val) => val && field.onChange(val)} />
         )}
       />
+      {canOfferWomenOnly ? (
+        <View style={styles.box}>
+          <View style={styles.switchRow}>
+            <View style={styles.flex}>
+              <Text variant="bodyStrong">Women only</Text>
+              <Text variant="caption" tone="muted">
+                Only women can request seats on this trip.
+              </Text>
+            </View>
+            <Controller
+              control={control}
+              name="womenOnly"
+              render={({ field }) => <Switch value={field.value} onValueChange={field.onChange} accessibilityLabel="Women only" trackColor={{ true: colors.brand }} />}
+            />
+          </View>
+        </View>
+      ) : null}
       <Controller
         control={control}
         name="seats"

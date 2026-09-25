@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
 import { Avatar, Badge, Button, EmptyState, ErrorState, LoadingState, RatingSummary, Text } from '@/components/ui';
+import { formatGender } from '@/features/profile/gender';
 import { requestStatusBadge } from '@/features/trips/labels';
 import { useAction } from '@/hooks/useAction';
 import { useAsync } from '@/hooks/useAsync';
@@ -76,6 +77,7 @@ function RequestRow({ tripId, request, onChanged }: { tripId: string; request: T
           </Text>
           <RatingSummary average={r?.rating_average} count={r?.rating_count} />
           <Text variant="small" tone="subtle">
+            {formatGender(r?.gender) ? `${formatGender(r?.gender)} · ` : ''}
             {r?.completed_trips_count ?? 0} shared trips · requested {formatAgo(request.created_at)}
           </Text>
         </View>

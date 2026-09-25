@@ -33,6 +33,7 @@ export type TripPayload = {
   expressway_option: ExpresswayOption;
   luggage_policy: LuggagePolicy;
   notes: string | null;
+  women_only: boolean;
 };
 
 export async function createTrip(
@@ -61,7 +62,7 @@ export type SearchParams = {
 };
 
 export async function searchTrips(s: SearchParams): Promise<TripSearchResult[]> {
-  return unwrap(
+  const rows: TripSearchResult[] = unwrap(
     await supabase.rpc('search_trips', {
       p_origin_lat: s.origin?.lat,
       p_origin_lng: s.origin?.lng,
@@ -77,6 +78,13 @@ export async function searchTrips(s: SearchParams): Promise<TripSearchResult[]> 
       p_offset: s.offset ?? 0,
     }),
   );
+  // Women-only flags for the result cards (best effort; the trip screen and
+  // the server enforce the rule).
+  const ids = rows.map((r) => r.id).filter((id): id is string => !!id);
+  if (!ids.length) return rows;
+  const { data } = await supabase.from('trips').select('id, women_only').in('id', ids);
+  const womenOnly = new Set((data ?? []).filter((t) => t.women_only).map((t) => t.id));
+  return rows.map((r) => ({ ...r, women_only: !!r.id && womenOnly.has(r.id) }));
 }
 
 export async function logSearch(props: Record<string, unknown>) {
@@ -130,6 +138,7 @@ export type TripRequestRow = {
     rating_average: number;
     rating_count: number;
     completed_trips_count: number;
+    gender: 'female' | 'male' | null;
   } | null;
 };
 
@@ -140,7 +149,7 @@ export async function listTripRequests(tripId: string): Promise<TripRequestRow[]
       .select(
         'id, status, seat_count, message, created_at, ' +
           'pickup_point:pickup_points!trip_requests_pickup_point_id_fkey(name), ' +
-          'requester:profiles!trip_requests_requester_id_fkey(id, full_name, avatar_path, rating_average, rating_count, completed_trips_count)',
+          'requester:profiles!trip_requests_requester_id_fkey(id, full_name, avatar_path, gender, rating_average, rating_count, completed_trips_count)',
       )
       .eq('trip_id', tripId)
       .in('status', ['pending', 'accepted'])
