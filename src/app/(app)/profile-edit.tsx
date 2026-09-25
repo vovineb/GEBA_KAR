@@ -5,13 +5,16 @@ import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { z } from 'zod';
 
+import { ChipSelect } from '@/components/form/ChipSelect';
 import { Avatar, Button, ErrorState, LoadingState, Screen, Text, TextField } from '@/components/ui';
+import { formatGender, genderOptions, type Gender } from '@/features/profile/gender';
 import { useAction } from '@/hooks/useAction';
 import { useAsync } from '@/hooks/useAsync';
 import { pickImage } from '@/lib/imagePicker';
 import { getMyProfile, updateMyProfile } from '@/services/profileService';
 import { removeImage, uploadImage } from '@/services/storageService';
 import { useUserId } from '@/store/authStore';
+import { useProfileStore } from '@/store/profileStore';
 import type { Profile } from '@/types/domain';
 import { space } from '@/theme';
 
@@ -35,6 +38,8 @@ export default function EditProfileScreen() {
 function EditForm({ profile }: { profile: Profile }) {
   const userId = useUserId()!;
   const [avatar, setAvatar] = useState(profile.avatar_path);
+  const [gender, setGender] = useState<Gender | null>(profile.gender);
+  const reloadMyProfile = useProfileStore((s) => s.load);
   const { control, handleSubmit, formState } = useForm<Form>({
     resolver: zodResolver(schema),
     defaultValues: { fullName: profile.full_name, phone: profile.phone_number ?? '', bio: profile.bio ?? '' },
@@ -47,6 +52,7 @@ function EditForm({ profile }: { profile: Profile }) {
     await updateMyProfile(userId, { avatar_path: path });
     if (avatar) void removeImage('avatars', avatar);
     setAvatar(path);
+    void reloadMyProfile();
   }, { errorTitle: 'Photo not saved' });
 
   const save = useAction(async (v: Form) => {
@@ -54,7 +60,10 @@ function EditForm({ profile }: { profile: Profile }) {
       full_name: v.fullName,
       phone_number: v.phone ? v.phone.replace(/\s/g, '') : null,
       bio: v.bio || null,
+      // Gender can only be set once (it decides access to women-only trips).
+      ...(!profile.gender && gender ? { gender } : {}),
     });
+    await reloadMyProfile();
     router.back();
   }, { errorTitle: 'Profile not saved' });
 
@@ -62,8 +71,18 @@ function EditForm({ profile }: { profile: Profile }) {
     <Screen edges={[]} footer={<Button title="Save" loading={save.busy} onPress={handleSubmit(save.run)} />}>
       <Pressable accessibilityRole="button" accessibilityLabel="Change profile photo" onPress={photo.run} style={styles.photo}>
         <Avatar path={avatar} name={profile.full_name} size={96} />
-        <Text tone="brand">{photo.busy ? 'Uploading…' : 'Change photo'}</Text>
+        <Text tone="brand">{photo.busy ? 'Uploading…' : avatar ? 'Change photo' : 'Add a profile photo'}</Text>
       </Pressable>
+      {profile.gender ? (
+        <TextField label="Gender" value={formatGender(profile.gender) ?? ''} editable={false} hint="Set at sign-up. Contact support to change it." />
+      ) : (
+        <View style={styles.group}>
+          <ChipSelect label="Gender" options={genderOptions} value={gender} onChange={setGender} />
+          <Text variant="small" tone="subtle">
+            Shown on your profile and used for women-only trips. It can only be set once.
+          </Text>
+        </View>
+      )}
       <Controller control={control} name="fullName" render={({ field }) => (
         <TextField label="Full name" value={field.value} onChangeText={field.onChange} autoCapitalize="words" error={formState.errors.fullName?.message} />
       )} />
@@ -78,4 +97,4 @@ function EditForm({ profile }: { profile: Profile }) {
   );
 }
 
-const styles = StyleSheet.create({ photo: { alignItems: 'center', gap: space.sm } });
+const styles = StyleSheet.create({ photo: { alignItems: 'center', gap: space.sm }, group: { gap: space.xs } });

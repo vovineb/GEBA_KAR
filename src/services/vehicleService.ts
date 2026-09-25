@@ -5,6 +5,7 @@ import type { Vehicle } from '@/types/domain';
 export type VehicleInput = Pick<Vehicle, 'make' | 'model' | 'colour' | 'registration_number' | 'seat_capacity'> & {
   year: number | null;
   photo_path: string | null;
+  photo_paths: string[];
 };
 
 export async function listMyVehicles(): Promise<Vehicle[]> {

@@ -2,7 +2,7 @@ import { ensureOk, toAppError, unwrap } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import type { Profile, PublicProfile } from '@/types/domain';
 
-const PUBLIC_COLUMNS = 'id, full_name, avatar_path, bio, rating_average, rating_count, completed_trips_count, created_at';
+const PUBLIC_COLUMNS = 'id, full_name, avatar_path, bio, gender, rating_average, rating_count, completed_trips_count, created_at';
 
 export async function getMyProfile(): Promise<Profile> {
   const res = await supabase.rpc('get_my_profile');
@@ -13,7 +13,7 @@ export async function getMyProfile(): Promise<Profile> {
 
 export async function updateMyProfile(
   userId: string,
-  patch: Partial<Pick<Profile, 'full_name' | 'phone_number' | 'bio' | 'avatar_path'>>,
+  patch: Partial<Pick<Profile, 'full_name' | 'phone_number' | 'bio' | 'avatar_path' | 'gender'>>,
 ) {
   ensureOk(await supabase.from('profiles').update(patch).eq('id', userId));
 }
@@ -29,7 +29,7 @@ export async function getPublicProfile(userId: string) {
       .limit(10),
     supabase
       .from('vehicles')
-      .select('id, make, model, colour, year, photo_path')
+      .select('id, make, model, colour, year, photo_path, photo_paths')
       .eq('owner_id', userId)
       .eq('status', 'active'),
   ]);
@@ -38,4 +38,9 @@ export async function getPublicProfile(userId: string) {
     ratings: unwrap(ratings),
     vehicles: unwrap(vehicles),
   };
+}
+
+/** Marks the one-time welcome guide as seen (and records accepted terms). */
+export async function completeOnboarding(termsVersion: string | null) {
+  ensureOk(await supabase.rpc('complete_onboarding', { p_terms_version: termsVersion ?? undefined }));
 }

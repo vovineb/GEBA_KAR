@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, router } from 'expo-router';
+import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 import type { z } from 'zod';
@@ -7,7 +8,8 @@ import type { z } from 'zod';
 import { Button, Screen, Text, TextField } from '@/components/ui';
 import { signInSchema } from '@/features/auth/schemas';
 import { useAction } from '@/hooks/useAction';
-import { signIn } from '@/services/authService';
+import { signIn, signInAsGuest } from '@/services/authService';
+import { useAuthStore } from '@/store/authStore';
 import { space } from '@/theme';
 
 type Form = z.infer<typeof signInSchema>;
@@ -28,6 +30,16 @@ export default function SignInScreen() {
       throw e;
     }
   }, { errorTitle: 'Sign in failed' });
+  const guest = useAction(signInAsGuest, { errorTitle: 'Could not continue' });
+
+  // A guest who tapped "Create account" lands here; take them straight to sign-up.
+  const authIntent = useAuthStore((s) => s.authIntent);
+  const setAuthIntent = useAuthStore((s) => s.setAuthIntent);
+  useEffect(() => {
+    if (authIntent === null) return;
+    setAuthIntent(null);
+    if (authIntent === 'sign-up') router.push('/sign-up');
+  }, [authIntent, setAuthIntent]);
 
   return (
     <Screen>
@@ -78,6 +90,13 @@ export default function SignInScreen() {
         <Link href="/sign-up" asChild>
           <Button title="Create an account" variant="secondary" />
         </Link>
+        <Button
+          title="Browse trips without an account"
+          variant="ghost"
+          loading={guest.busy}
+          onPress={guest.run}
+          accessibilityHint="You can look around; you will be asked to sign up before creating or joining a trip."
+        />
       </View>
     </Screen>
   );

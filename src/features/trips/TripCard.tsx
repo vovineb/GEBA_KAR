@@ -73,6 +73,7 @@ export const TripCard = memo(function TripCard({ trip, timeZone }: { trip: TripS
             {trip.vehicle_colour} {trip.vehicle_make} {trip.vehicle_model}
           </Text>
         </View>
+        {trip.women_only ? <Badge label="Women only" tone="info" /> : null}
         {trip.is_recurring ? <Badge label="Regular commute" tone="brand" /> : null}
         {trip.expressway_option && trip.expressway_option !== 'either' ? (
           <Badge label={expresswayLabel[trip.expressway_option]} tone="info" />

@@ -1,10 +1,11 @@
-import { Stack } from 'expo-router';
+import { router, Stack } from 'expo-router';
 import { useEffect } from 'react';
 
 import { ErrorState, LoadingState, Screen } from '@/components/ui';
 import { useNotificationSetup } from '@/features/notifications/useNotificationSetup';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useIsGuest } from '@/store/authStore';
 import { useConfigStore } from '@/store/configStore';
+import { useProfileStore } from '@/store/profileStore';
 import { colors } from '@/theme';
 
 export const unstable_settings = { initialRouteName: '(tabs)' };
@@ -15,10 +16,32 @@ export default function AppLayout() {
   const error = useConfigStore((s) => s.error);
   const load = useConfigStore((s) => s.load);
 
+  const isGuest = useIsGuest();
+  const loadProfile = useProfileStore((s) => s.load);
+  const clearProfile = useProfileStore((s) => s.clear);
+
   useEffect(() => {
     void load();
   }, [load]);
-  useNotificationSetup(userId, !!config);
+  // Guests have no account: no push registration.
+  useNotificationSetup(userId, !!config && !isGuest);
+
+  // New members see the welcome guide once (and accept the terms if they
+  // have not yet); later sign-ins skip it.
+  const ready = !!config;
+  useEffect(() => {
+    if (!ready || isGuest) {
+      clearProfile();
+      return;
+    }
+    let alive = true;
+    void loadProfile().then((p) => {
+      if (alive && p && (!p.onboarded_at || !p.terms_accepted_at)) router.push('/welcome');
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ready, isGuest, userId, loadProfile, clearProfile]);
 
   // The navigator is always mounted so deep links and notification taps that
   // arrive during start-up keep their target; each screen's content waits for
@@ -59,6 +82,7 @@ export default function AppLayout() {
       <Stack.Screen name="recurring" options={{ title: 'Recurring commutes' }} />
       <Stack.Screen name="settings/index" options={{ title: 'Settings' }} />
       <Stack.Screen name="settings/blocked" options={{ title: 'Blocked users' }} />
+      <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
     </Stack>
   );
 }

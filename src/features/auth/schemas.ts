@@ -9,9 +9,11 @@ export const signInSchema = z.object({ email: emailSchema, password: z.string().
 export const signUpSchema = z
   .object({
     fullName: z.string().trim().min(2, 'Enter your name').max(80),
+    gender: z.enum(['female', 'male'], { message: 'Choose your gender' }),
     email: emailSchema,
     password: passwordSchema,
     confirm: z.string(),
+    acceptTerms: z.boolean().refine((v) => v, 'Accept the Terms and Conditions to continue'),
   })
   .refine((v) => v.password === v.confirm, { path: ['confirm'], message: 'Passwords do not match' });
 

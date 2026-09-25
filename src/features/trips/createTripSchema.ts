@@ -35,6 +35,7 @@ export const createTripSchema = z
       .refine((v) => v === '' || (/^\d{1,6}$/.test(v) && Number(v) >= 0), 'Enter a whole amount, e.g. 120'),
     notes: z.string().trim().max(500, 'Keep notes under 500 characters'),
     stops: z.array(location).max(5),
+    womenOnly: z.boolean(),
   })
   .superRefine((v, ctx) => {
     if (v.origin && v.destination && v.origin.lat === v.destination.lat && v.origin.lng === v.destination.lng) {

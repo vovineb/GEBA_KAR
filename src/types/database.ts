@@ -389,10 +389,14 @@ export type Database = {
           completed_trips_count: number
           created_at: string
           full_name: string
+          gender: Database["public"]["Enums"]["gender"] | null
           id: string
+          onboarded_at: string | null
           phone_number: string | null
           rating_average: number
           rating_count: number
+          terms_accepted_at: string | null
+          terms_version: string | null
           updated_at: string
         }
         Insert: {
@@ -401,10 +405,14 @@ export type Database = {
           completed_trips_count?: number
           created_at?: string
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender"] | null
           id: string
+          onboarded_at?: string | null
           phone_number?: string | null
           rating_average?: number
           rating_count?: number
+          terms_accepted_at?: string | null
+          terms_version?: string | null
           updated_at?: string
         }
         Update: {
@@ -413,10 +421,14 @@ export type Database = {
           completed_trips_count?: number
           created_at?: string
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender"] | null
           id?: string
+          onboarded_at?: string | null
           phone_number?: string | null
           rating_average?: number
           rating_count?: number
+          terms_accepted_at?: string | null
+          terms_version?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -532,6 +544,7 @@ export type Database = {
           updated_at: string
           vehicle_id: string
           weekdays: number[]
+          women_only: boolean
         }
         Insert: {
           created_at?: string
@@ -562,6 +575,7 @@ export type Database = {
           updated_at?: string
           vehicle_id: string
           weekdays: number[]
+          women_only?: boolean
         }
         Update: {
           created_at?: string
@@ -592,6 +606,7 @@ export type Database = {
           updated_at?: string
           vehicle_id?: string
           weekdays?: number[]
+          women_only?: boolean
         }
         Relationships: [
           {
@@ -956,6 +971,7 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
           updated_at: string
           vehicle_id: string
+          women_only: boolean
         }
         Insert: {
           available_seats?: number | null
@@ -994,6 +1010,7 @@ export type Database = {
           trip_type: Database["public"]["Enums"]["trip_type"]
           updated_at?: string
           vehicle_id: string
+          women_only?: boolean
         }
         Update: {
           available_seats?: number | null
@@ -1032,6 +1049,7 @@ export type Database = {
           trip_type?: Database["public"]["Enums"]["trip_type"]
           updated_at?: string
           vehicle_id?: string
+          women_only?: boolean
         }
         Relationships: [
           {
@@ -1113,6 +1131,7 @@ export type Database = {
           model: string
           owner_id: string
           photo_path: string | null
+          photo_paths: string[]
           registration_number: string
           seat_capacity: number
           status: Database["public"]["Enums"]["vehicle_status"]
@@ -1127,6 +1146,7 @@ export type Database = {
           model: string
           owner_id: string
           photo_path?: string | null
+          photo_paths?: string[]
           registration_number: string
           seat_capacity: number
           status?: Database["public"]["Enums"]["vehicle_status"]
@@ -1141,6 +1161,7 @@ export type Database = {
           model?: string
           owner_id?: string
           photo_path?: string | null
+          photo_paths?: string[]
           registration_number?: string
           seat_capacity?: number
           status?: Database["public"]["Enums"]["vehicle_status"]
@@ -1182,6 +1203,10 @@ export type Database = {
       }
       cfg: { Args: { p_key: string }; Returns: Json }
       cfg_timezone: { Args: never; Returns: string }
+      complete_onboarding: {
+        Args: { p_terms_version?: string }
+        Returns: undefined
+      }
       complete_trip: { Args: { p_trip_id: string }; Returns: undefined }
       create_recurring_trip: { Args: { p: Json }; Returns: string }
       create_trip: { Args: { p: Json }; Returns: string }
@@ -1208,10 +1233,14 @@ export type Database = {
           completed_trips_count: number
           created_at: string
           full_name: string
+          gender: Database["public"]["Enums"]["gender"] | null
           id: string
+          onboarded_at: string | null
           phone_number: string | null
           rating_average: number
           rating_count: number
+          terms_accepted_at: string | null
+          terms_version: string | null
           updated_at: string
         }
         SetofOptions: {
@@ -1221,11 +1250,13 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_server_secret: { Args: { p_name: string }; Returns: string }
       get_trip_detail: { Args: { p_trip_id: string }; Returns: Json }
       has_trip_request: {
         Args: { p_trip_id: string; p_user_id: string }
         Returns: boolean
       }
+      is_anonymous: { Args: never; Returns: boolean }
       is_blocked_between: { Args: { a: string; b: string }; Returns: boolean }
       is_conversation_member: {
         Args: { p_conversation_id: string; p_user_id: string }
@@ -1308,6 +1339,7 @@ export type Database = {
           model: string
           owner_id: string
           photo_path: string | null
+          photo_paths: string[]
           registration_number: string
           seat_capacity: number
           status: Database["public"]["Enums"]["vehicle_status"]
@@ -1353,6 +1385,7 @@ export type Database = {
         Returns: string
       }
       require_user: { Args: never; Returns: string }
+      require_viewer: { Args: never; Returns: string }
       respond_to_request: {
         Args: { p_accept: boolean; p_request_id: string }
         Returns: Database["public"]["Enums"]["request_status"]
@@ -1426,6 +1459,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      verify_push_webhook_secret: {
+        Args: { p_secret: string }
+        Returns: boolean
+      }
     }
     Enums: {
       analytics_event:
@@ -1442,6 +1479,7 @@ export type Database = {
         | "message_sent"
       conversation_kind: "direct" | "trip_group"
       expressway_option: "use" | "avoid" | "either"
+      gender: "female" | "male"
       incident_kind:
         | "passenger_no_show"
         | "creator_no_show"
@@ -1664,6 +1702,7 @@ export const Constants = {
       ],
       conversation_kind: ["direct", "trip_group"],
       expressway_option: ["use", "avoid", "either"],
+      gender: ["female", "male"],
       incident_kind: [
         "passenger_no_show",
         "creator_no_show",

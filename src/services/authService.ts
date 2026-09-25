@@ -1,3 +1,5 @@
+import { TERMS_VERSION } from '@/features/legal/terms';
+import type { Gender } from '@/features/profile/gender';
 import { toAppError } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import { unregisterThisDevice } from '@/services/notificationService';
@@ -10,11 +12,14 @@ function check(error: unknown) {
   if (error) throw toAppError(error);
 }
 
-export async function signUp(email: string, password: string, fullName: string) {
+export async function signUp(email: string, password: string, fullName: string, gender: Gender) {
+  // Leave guest mode first so the new account does not replace a guest session.
+  await leaveGuestSession();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName } },
+    // Read by the database when it creates the profile.
+    options: { data: { full_name: fullName, gender, terms_version: TERMS_VERSION } },
   });
   check(error);
   return { needsConfirmation: !data.session };
@@ -30,7 +35,25 @@ export async function resendSignupCode(email: string) {
   check(error);
 }
 
+/** Browse without an account (Supabase anonymous sign-in). */
+export async function signInAsGuest() {
+  const { error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    if (error.code === 'anonymous_provider_disabled' || /anonymous sign-ins are disabled/i.test(error.message)) {
+      throw toAppError({ message: 'guest_mode_disabled' });
+    }
+    check(error);
+  }
+}
+
+/** Ends a guest session (if any) on this device only. */
+export async function leaveGuestSession() {
+  const { data } = await supabase.auth.getSession();
+  if (data.session?.user.is_anonymous) await supabase.auth.signOut({ scope: 'local' });
+}
+
 export async function signIn(email: string, password: string) {
+  await leaveGuestSession();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   check(error);
 }

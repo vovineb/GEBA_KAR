@@ -15,7 +15,8 @@ grant usage on schema public, extensions, auth, storage to anon, authenticated, 
 create table auth.users (
   id uuid primary key,
   email text,
-  raw_user_meta_data jsonb not null default '{}'::jsonb
+  raw_user_meta_data jsonb not null default '{}'::jsonb,
+  is_anonymous boolean not null default false
 );
 create function auth.uid() returns uuid language sql stable as $$
   select coalesce(
@@ -24,6 +25,10 @@ create function auth.uid() returns uuid language sql stable as $$
   )::uuid
 $$;
 grant execute on function auth.uid() to anon, authenticated, service_role;
+create function auth.jwt() returns jsonb language sql stable as $$
+  select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb
+$$;
+grant execute on function auth.jwt() to anon, authenticated, service_role;
 
 create table storage.buckets (
   id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]

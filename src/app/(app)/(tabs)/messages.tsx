@@ -8,11 +8,20 @@ import { useAsync } from '@/hooks/useAsync';
 import { formatRelative } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { listConversations } from '@/services/chatService';
-import { useUserId } from '@/store/authStore';
+import { GuestGate } from '@/features/auth/guest';
+import { useIsGuest, useUserId } from '@/store/authStore';
 import { useBadgeStore } from '@/store/badgeStore';
 import { colors, radius, space } from '@/theme';
 
-export default function MessagesScreen() {
+export default function MessagesScreenGate() {
+  const isGuest = useIsGuest();
+  if (isGuest) {
+    return <GuestGate title="Messages" body="Sign up to chat with trip creators and passengers." />;
+  }
+  return <MessagesScreen />;
+}
+
+function MessagesScreen() {
   const userId = useUserId()!;
   const refreshBadges = useBadgeStore((s) => s.refresh);
   const list = useAsync(listConversations, []);

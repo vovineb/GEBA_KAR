@@ -4,6 +4,8 @@ import { useState, type ReactNode } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Avatar, Badge, Button, Divider, ErrorState, ListRow, LoadingState, RatingSummary, Screen, Section, Text } from '@/components/ui';
+import { promptAccount } from '@/features/auth/guest';
+import { formatGender } from '@/features/profile/gender';
 import { expresswayLabel, luggageLabel, requestStatusBadge, tripStatusBadge, tripTypeLabel } from '@/features/trips/labels';
 import { startTripAndShare } from '@/features/trips/lifecycle';
 import { RequestSeatPanel } from '@/features/trips/RequestSeatPanel';
@@ -11,11 +13,13 @@ import { shareTrip } from '@/features/trips/shareTrip';
 import { primaryAction } from '@/features/trips/tripActions';
 import { TripMap } from '@/features/trips/TripMap';
 import { useTripDetail } from '@/features/trips/useTripDetail';
+import { VehiclePhotos } from '@/features/vehicles/VehiclePhotos';
 import { useAction } from '@/hooks/useAction';
 import { formatDateTime, formatDistance, formatDuration, formatMoney, formatTime } from '@/lib/format';
 import { cancelRequest, cancelTrip, reportNoShow } from '@/services/tripService';
-import { useUserId } from '@/store/authStore';
+import { useIsGuest, useUserId } from '@/store/authStore';
 import { useAppConfig } from '@/store/configStore';
+import { useMyGender } from '@/store/profileStore';
 import type { TripDetail } from '@/types/domain';
 import { colors, space } from '@/theme';
 
@@ -44,6 +48,11 @@ function TripDetailView({
   const userId = useUserId()!;
   const tz = config.timezone;
   const [requesting, setRequesting] = useState(false);
+  const isGuest = useIsGuest();
+  const myGender = useMyGender();
+  // Guests are asked to sign up first; the server enforces both rules too.
+  const womenOnlyBlocked = trip.women_only && !isGuest && myGender !== 'female';
+  const onRequest = () => (isGuest ? promptAccount('request a seat') : setRequesting(true));
   const action = primaryAction(trip, userId, new Date(), config.trip_rules.start_window_minutes);
   const statusBadge = tripStatusBadge[trip.status];
   const contribution = formatMoney(trip.suggested_contribution, trip.currency);
@@ -106,7 +115,8 @@ function TripDetailView({
           trip={trip}
           timeZone={tz}
           busy={start.busy || withdraw.busy || cancel.busy}
-          onRequest={() => setRequesting(true)}
+          onRequest={onRequest}
+          womenOnlyBlocked={womenOnlyBlocked}
           onStart={start.run}
           onWithdraw={confirmLeave}
         />
@@ -117,6 +127,7 @@ function TripDetailView({
         <View style={styles.badges}>
           <Badge label={statusBadge.label} tone={statusBadge.tone} />
           <Badge label={tripTypeLabel[trip.trip_type]} tone="brand" />
+          {trip.women_only ? <Badge label="Women only" tone="info" /> : null}
           {trip.recurring_trip_id ? <Badge label="Regular commute" tone="brand" /> : null}
           {trip.my_request && !trip.is_creator && trip.my_membership?.status !== 'confirmed' ? (
             <Badge label={requestStatusBadge[trip.my_request.status].label} tone={requestStatusBadge[trip.my_request.status].tone} />
@@ -184,7 +195,7 @@ function TripDetailView({
           {!trip.is_creator ? (
             <ListRow
               title={trip.creator.full_name || 'CASS member'}
-              subtitle={`${trip.creator.completed_trips_count} shared trips completed`}
+              subtitle={`${formatGender(trip.creator.gender) ? `${formatGender(trip.creator.gender)} · ` : ''}${trip.creator.completed_trips_count} shared trips completed`}
               left={<Avatar path={trip.creator.avatar_path} name={trip.creator.full_name} />}
               right={<RatingSummary average={trip.creator.rating_average} count={trip.creator.rating_count} />}
               onPress={() => router.push(`/user/${trip.creator.id}`)}
@@ -195,6 +206,7 @@ function TripDetailView({
             subtitle={trip.vehicle.registration_number ? `Registration ${trip.vehicle.registration_number}` : 'Registration shown after your seat is confirmed'}
             left={<Car size={22} color={colors.textMuted} />}
           />
+          <VehiclePhotos paths={trip.vehicle.photo_paths} />
         </Section>
 
         {trip.is_participant && trip.members.length > 1 ? (
@@ -203,7 +215,7 @@ function TripDetailView({
               <ListRow
                 key={m.user_id}
                 title={`${m.full_name || 'CASS member'}${m.user_id === userId ? ' (you)' : ''}`}
-                subtitle={m.role === 'creator' ? 'Trip creator' : `${m.seat_count} seat${m.seat_count > 1 ? 's' : ''}${m.status === 'no_show' ? ' · no-show' : ''}`}
+                subtitle={`${formatGender(m.gender) ? `${formatGender(m.gender)} · ` : ''}${m.role === 'creator' ? 'Trip creator' : `${m.seat_count} seat${m.seat_count > 1 ? 's' : ''}${m.status === 'no_show' ? ' · no-show' : ''}`}`}
                 left={<Avatar path={m.avatar_path} name={m.full_name} size={36} />}
                 onPress={
                   m.user_id === userId
@@ -245,7 +257,7 @@ function TripDetailView({
             <ListRow title="Seat requests" subtitle={trip.pending_request_count ? `${trip.pending_request_count} waiting for your reply` : 'No pending requests'} left={<Users size={20} color={colors.brand} />} onPress={() => router.push(`/trip/${trip.id}/requests`)} />
           ) : null}
           <ListRow title="Share trip details" subtitle="Send route, time and vehicle to someone you trust" left={<Share2 size={20} color={colors.brand} />} onPress={() => void shareTrip(trip, tz)} />
-          <ListRow title="Report this trip" left={<ShieldAlert size={20} color={colors.danger} />} onPress={() => router.push({ pathname: '/report', params: { tripId: trip.id, userId: trip.is_creator ? '' : trip.creator.id } })} />
+          <ListRow title="Report this trip" left={<ShieldAlert size={20} color={colors.danger} />} onPress={() => (isGuest ? promptAccount('report a trip') : router.push({ pathname: '/report', params: { tripId: trip.id, userId: trip.is_creator ? '' : trip.creator.id } }))} />
           {trip.is_creator && ['open', 'full', 'draft'].includes(trip.status) ? (
             <Button title="Cancel trip" variant="danger" loading={cancel.busy} onPress={confirmCancelTrip} />
           ) : null}
@@ -279,6 +291,7 @@ function PrimaryActionBar({
   onRequest,
   onStart,
   onWithdraw,
+  womenOnlyBlocked,
 }: {
   action: ReturnType<typeof primaryAction>;
   trip: TripDetail;
@@ -287,10 +300,15 @@ function PrimaryActionBar({
   onRequest: () => void;
   onStart: () => void;
   onWithdraw: () => void;
+  womenOnlyBlocked: boolean;
 }) {
   switch (action.kind) {
     case 'request':
-      return <Button title="Request seat" onPress={onRequest} />;
+      return womenOnlyBlocked ? (
+        <Button title="Women-only trip" disabled accessibilityHint="Only women can join this trip." />
+      ) : (
+        <Button title="Request seat" onPress={onRequest} />
+      );
     case 'pending':
       return (
         <View style={styles.bar}>
